@@ -1,4 +1,12 @@
+const express = require('express');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const cors = require('cors');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
 
 const uri = "mongodb+srv://amithpasham:QL6SuzrHOU8MVt6O@cluster0.btwllvn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
@@ -57,29 +65,38 @@ const SAMPLE_QUESTIONS = [
   }
 ];
 
-async function run() {
+async function initMongo() {
   try {
     await client.connect();
     console.log("Connected to MongoDB!");
+    const db = client.db("SAMPLE");
+    const collection = db.collection("QUESTIONS");
 
-    const database = client.db("SAMPLE");           
-    const collection = database.collection("QUESTIONS"); 
-
-    // Insert questions (only if collection is empty)
     const count = await collection.countDocuments();
     if (count === 0) {
       await collection.insertMany(SAMPLE_QUESTIONS);
       console.log("Inserted SAMPLE_QUESTIONS into MongoDB!");
     }
 
-    // Retrieve all documents
-    const questions = await collection.find({}).toArray();
-    console.log("Retrieved questions from MongoDB:", questions);
+    return collection;
   } catch (err) {
-    console.error("Error:", err);
-  } finally {
-    await client.close();
+    console.error("MongoDB Error:", err);
   }
 }
 
-run();
+app.get('/questions', async (req, res) => {
+  try {
+    const collection = await initMongo();
+    const questions = await collection.find({}).toArray();
+    res.json(questions);
+  } catch (err) {
+    res.status(500).send("Error retrieving questions");
+  } finally {
+    await client.close();
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+
